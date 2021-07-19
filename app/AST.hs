@@ -10,7 +10,7 @@ data Prog
   = Var   Name
   | Lam   NameDecl Prog
   | App   Prog Prog
-  | Let   [Decl] Prog
+  | Let   Decl Prog
   | Match Prog [Alt]
   | Const Constant
   | New   [Decl]
@@ -29,7 +29,7 @@ instance Descent Prog where
     Var   n       -> Var   <$>          leaf   n
     Lam   n  b    -> Lam   <$>          leaf   n  <*> branch b
     App   f  x    -> App   <$>          branch f  <*> branch x
-    Let   ds b    -> Let   <$> traverse branch ds <*> branch b
+    Let   ds b    -> Let   <$>          branch ds <*> branch b
     Match o  pats -> Match <$>          branch o  <*> traverse branch pats
     Const c       -> Const <$>          leaf   c
     New   ds      -> New   <$> traverse branch ds

@@ -9,11 +9,9 @@ import Descent
 -- Test subject.
 --
 ast :: Prog
-ast =
-  Let
-    [ Bind "id"    $ Lam "a" "a"
-    , Bind "const" $ Lam "a" $ Lam "b" "a"
-    ]
+ast
+  = Let (Bind "id"    $ Lam "a" "a")
+  $ Let (Bind "const" $ Lam "a" $ Lam "b" "a")
   $ Match (App "id" (Const $ I 1))
       [ Alt (IsVar "a" `As` IsVar "b")
           (App "const" (App (App "plus" "a") "b"))
@@ -44,10 +42,10 @@ useName = pack
       lift $ print ("Name", name, "=>", name')
       return $ Name name'
 
-  , one \(NameDecl name) -> do
-      name' <- rename name
-      lift $ print ("Decl", name, "->", name')
-      return $ NameDecl name'
+  -- , one \(NameDecl name) -> do
+  --     name' <- rename name
+  --     lift $ print ("Decl", name, "->", name')
+  --     return $ NameDecl name'
   ]
 
 rename :: String -> ScopeM String
@@ -78,14 +76,6 @@ enter = pack
         lift $ putStrLn "Enter lambda"
         (scope, counter) <- get
         put ([(n, counter)] : scope, counter)
-
-      -- In case of let, insert a stack frame with each decl.
-      --
-      Let ds b -> do
-        lift $ putStrLn "Enter let"
-        (scope, counter) <- get
-        let names = map (unNameDecl . name) ds
-        put (zip names [counter..] : scope, counter + length names)
 
       _ -> do
         return ()
@@ -120,6 +110,11 @@ leave = pack
       Lam {} -> dropFrame "lambda"
       Let {} -> dropFrame "let"
       _      -> return ()
+
+  , one $ sideEffect \case
+      Bind (NameDecl n) b -> do
+        (scope, counter) <- get
+        put ([(n, counter)] : scope, counter + 1)
 
   , one $ sideEffect \case
       Alt {} -> dropFrame "alt"
