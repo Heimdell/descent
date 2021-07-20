@@ -29,24 +29,27 @@ module Descent
   , sideEffect
   ) where
 
-import Control.Monad
+import Control.Monad ((>=>))
 
-import Data.Dynamic
+import Data.Typeable (Typeable)
 import Data.TypeRepMap qualified as TMap
 
 -- | The container for action over some node @a@.
 --
-newtype Action m a = Action { runAction :: a -> m a }
+newtype Action m a = Action
+  { runAction :: a -> m a
+  }
 
 -- | The composition for action containers.
 --
-(>->) :: Monad m => Action m a -> Action m a -> Action m a
+(>->) :: (Monad m) => Action m a -> Action m a -> Action m a
 Action l >-> Action r = Action (l >=> r)
 
 -- | The map, containing actions for various types.
 --
-data Transform m where
-  Transform :: TMap.TypeRepMap (Action m) -> Transform m
+newtype Transform m = Transform
+  { unTransform :: TMap.TypeRepMap (Action m)
+  }
 
 -- | Shows the list of types it has actions for.
 instance Show (Transform m) where
@@ -61,18 +64,19 @@ empty = Transform TMap.empty
 --
 --   If both work on some @a@, they will be run in left-to-right order.
 --
-add :: Monad m => Transform m -> Transform m -> Transform m
-add (Transform l) (Transform r) = Transform $ TMap.unionWith (>->) l r
+add :: (Monad m) => Transform m -> Transform m -> Transform m
+add (Transform l) (Transform r) =
+  Transform (TMap.unionWith (>->) l r)
 
 -- | Chain several transforms.
 --
-pack :: Monad m => [Transform m] -> Transform m
+pack :: (Monad m) => [Transform m] -> Transform m
 pack = foldl add empty
 
 -- | Convert a function to `Transform`er.
 --
 one :: (Typeable a, Monad m) => (a -> m a) -> Transform m
-one f = Transform $ TMap.one (Action f)
+one f = Transform (TMap.one (Action f))
 
 -- | Run the provided side effect and leave target unchanged.
 --
@@ -91,10 +95,10 @@ runTransform (Transform trmap) a = do
 
 -- | The interface for recurrent types.
 --
-class Descent a where
+class Typeable a => Descent a where
   descend
     :: forall m
-    .  Monad m
+    .  (Monad m)
     => (forall b.  Typeable b             => b -> m b) -- ^ the action over plain types
     -> (forall c. (Typeable c, Descent c) => c -> m c) -- ^ the action over recursion points
     -> a                                               -- ^ the target of transformations
@@ -110,8 +114,8 @@ class Descent a where
 descending
   :: forall a m
   .  ( Typeable a
-     , Descent a
-     , Monad m
+     , Descent  a
+     , Monad    m
      )
   => Transform m  -- ^ "enter", the transform before entering recursion point
   -> Transform m  -- ^ "leave", the transform after leaving recursion point
@@ -120,4 +124,7 @@ descending
 descending open close t = add t (one (go @a))
   where
     go :: forall b. (Typeable b, Descent b, Monad m) => b -> m b
-    go = runTransform open >=> descend (runTransform t) go >=> runTransform close
+    go
+      =   runTransform open
+      >=> descend (runTransform t) go
+      >=> runTransform close

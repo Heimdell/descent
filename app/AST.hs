@@ -45,10 +45,12 @@ instance Descent Prog where
 newtype Name     = Name     {unName     :: String } deriving stock (Eq, Ord) deriving newtype Show
 newtype NameDecl = NameDecl {unNameDecl :: String } deriving stock (Eq, Ord) deriving newtype Show
 newtype NameCtor = NameCtor {unNameCtor :: String } deriving stock (Eq, Ord) deriving newtype Show
+newtype NameLet  = NameLet  {unNameLet  :: String } deriving stock (Eq, Ord) deriving newtype Show
 
 instance IsString Name     where fromString = Name
 instance IsString NameDecl where fromString = NameDecl
 instance IsString NameCtor where fromString = NameCtor
+instance IsString NameLet  where fromString = NameLet
 
 data Alt = Alt Pat Prog
   deriving stock (Eq, Ord, Show)
@@ -58,7 +60,7 @@ instance Descent Alt where
     Alt p b -> Alt <$> branch p <*> branch b
 
 data Decl
-  = Bind { name :: NameDecl, body :: Prog }
+  = Bind { name :: NameLet, body :: Prog }
   deriving stock (Eq, Ord, Show)
 
 instance Descent Decl where

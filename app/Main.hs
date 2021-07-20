@@ -42,10 +42,17 @@ useName = pack
       lift $ print ("Name", name, "=>", name')
       return $ Name name'
 
-  -- , one \(NameDecl name) -> do
-  --     name' <- rename name
-  --     lift $ print ("Decl", name, "->", name')
-  --     return $ NameDecl name'
+  , one \(NameDecl name) -> do
+      name' <- rename name
+      lift $ print ("Decl", name, "->", name')
+      return $ NameDecl name'
+
+  -- Small hack. We assign depth the name would take (but it didn't).
+  , one \(NameLet name) -> do
+      (_, counter) <- get
+      let name' = addIndex name counter
+      lift $ print ("Let", name, "->", name')
+      return $ NameLet name'
   ]
 
 rename :: String -> ScopeM String
@@ -112,7 +119,7 @@ leave = pack
       _      -> return ()
 
   , one $ sideEffect \case
-      Bind (NameDecl n) b -> do
+      Bind (NameLet n) b -> do
         (scope, counter) <- get
         put ([(n, counter)] : scope, counter + 1)
 
