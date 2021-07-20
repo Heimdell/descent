@@ -42,10 +42,10 @@ instance Descent Prog where
 --
 --   So, typenames, for instance, should have their own TName/TNameUsed newtypes.
 --
-newtype Name     = Name     {unName     :: String } deriving stock (Eq, Ord) deriving newtype Show
-newtype NameDecl = NameDecl {unNameDecl :: String } deriving stock (Eq, Ord) deriving newtype Show
-newtype NameCtor = NameCtor {unNameCtor :: String } deriving stock (Eq, Ord) deriving newtype Show
-newtype NameLet  = NameLet  {unNameLet  :: String } deriving stock (Eq, Ord) deriving newtype Show
+newtype Name     = Name     { unName     :: String } deriving stock (Eq, Ord) deriving newtype Show
+newtype NameDecl = NameDecl { unNameDecl :: String } deriving stock (Eq, Ord) deriving newtype Show
+newtype NameCtor = NameCtor { unNameCtor :: String } deriving stock (Eq, Ord) deriving newtype Show
+newtype NameLet  = NameLet  { unNameLet  :: String } deriving stock (Eq, Ord) deriving newtype Show
 
 instance IsString Name     where fromString = Name
 instance IsString NameDecl where fromString = NameDecl
