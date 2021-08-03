@@ -2,6 +2,7 @@ name: descent
 dependencies:
   - base
   - typerep-map
+  - template-haskell
 
 default-extensions:
   - AllowAmbiguousTypes
