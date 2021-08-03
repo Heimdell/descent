@@ -30,7 +30,7 @@ data Name = Name { unName :: String, index :: Int } deriving stock (Eq, Ord)
 
 instance Show Name where
   show (Name s (-1)) = s
-  show (Name s   n)  = s ++ "'" ++ show n
+  show (Name s   n)  = "#" ++ show n
 
 instance IsString Name where fromString = flip Name (-1)
 

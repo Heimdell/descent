@@ -18,19 +18,19 @@ ast
 
 -- Our working state. Is a list of stack frames.
 --
-type Scope = [[(String, Int)]]
+type Scope = [[String]]
 
--- Our working monad. `ContT` here is so we can restore state.
+-- Our working monad.
 --
--- The state consists of scope and a depth counter for names.
+-- The state consists of stack frames of names.
 --
-type ScopeM = StateT (Scope, Int) IO
+type ScopeM = StateT Scope IO
 
 -- Run the `ScopeM`.
 --
 runScopeM :: ScopeM r -> IO r
 runScopeM
-  = flip evalStateT ([], 0)
+  = flip evalStateT []
 
 -- If the name ("a") is bound, convert it to "a'N", where N is its depth in stack.
 --
@@ -38,32 +38,43 @@ useName :: Transform ScopeM
 useName = pack
   [ one \(NameVar name) -> do
       name' <- rename name
-      lift $ print ("Name", name, "=>", name')
+      get >>= \s ->
+        lift $ print ("Name", name, "=>", name', "in", s)
       return $ NameVar name'
 
   , one \(NameDecl name) -> do
       name' <- rename name
-      lift $ print ("Decl", name, "->", name')
+      -- lift $ print ("Decl", name, "->", name')
       return $ NameDecl name'
 
   -- Small hack. We assign depth the name would take (but it didn't).
   , one \(NameLet name) -> do
-      (_, counter) <- get
-      let name' = addIndex name counter
-      lift $ print ("Let", name, "->", name')
+      let name' = addIndex name 0
+      -- lift $ print ("Let", name, "->", name')
       return $ NameLet name'
   ]
 
+-- Find the current depth of the name and attach it.
 rename :: Name -> ScopeM Name
 rename name = do
-  (scope, _) <- get
+  scope <- get
   case find (unName name) scope of
     Just index -> return $ addIndex name index
     Nothing    -> return name
 
+-- Find the current depth of the name.
 find :: String -> Scope -> Maybe Int
 find _ [] = Nothing
-find n (frame : rest) = lookup n frame <|> find n rest
+find n (frame : rest) = case find' n frame of
+  Nothing -> (length frame +) <$> find n rest
+  Just n  -> return n
+  where
+    find' n (n' : rest')
+      | n == n' = return 0
+      | otherwise = (1 +) <$> find' n rest'
+
+    find' _ [] = Nothing
+
 
 -- Add index to the name.
 --
@@ -79,9 +90,8 @@ enter = pack
       -- In case of lambda, insert a stack frame of 1 variable.
       --
       Lam (NameDecl n) _ -> do
-        lift $ putStrLn "Enter lambda"
-        (scope, counter) <- get
-        put ([(unName n, counter)] : scope, counter)
+        -- lift $ putStrLn "Enter lambda"
+        modify ([unName n] :)
 
       _ -> do
         return ()
@@ -91,18 +101,16 @@ enter = pack
       -- In case of alt, insert an empty stack frame.
       --
       Alt {} -> do
-        lift $ putStrLn "Enter alt"
-        (scope, counter) <- get
-        put ([] : scope, counter)
+        modify ([] :)
+        -- lift $ putStrLn "Enter alt"
 
   , one $ sideEffect \case
 
       -- In case of var-pattern, insert an variable into the top stack frame.
       --
       IsVar (NameDecl n) -> do
-        lift $ putStrLn "Enter isVar"
-        get >>= \(frame : scope, counter) -> do
-          put (((unName n, counter) : frame) : scope, counter + 1)
+        -- lift $ putStrLn "Enter isVar"
+        modify \(top : s) -> (unName n : top) : s
 
       _ -> do
         return ()
@@ -119,21 +127,21 @@ leave = pack
 
   , one $ sideEffect \case
       Bind (NameLet n) _ -> do
-        (scope, counter) <- get
-        lift $ putStrLn $ "push " ++ show n
-        put ([(unName n, counter)] : scope, counter + 1)
+        -- lift $ putStrLn $ "push " ++ show n
+        modify ([unName n] :)
 
   , one $ sideEffect \case
       Alt {} -> dropFrame "alt"
   ]
   where
     dropFrame what = do
-      lift $ putStrLn $ "Leave " ++ what
-      (scope, ix) <- get
-      put (tail scope, ix)
+      -- lift $ putStrLn $ "Leave " ++ what
+      modify tail
 
 main :: IO ()
 main = do
   print ast
+  -- assign initial De Brujin indices to names.
   ast' <- runScopeM $ runTransform (descending @Prog enter leave useName) ast
+  print "----"
   print ast'
