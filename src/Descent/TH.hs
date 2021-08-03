@@ -7,7 +7,7 @@ import Data.Set qualified as Set
 
 import Language.Haskell.TH
 
-import Debug.Trace
+-- import Debug.Trace
 
 data DescentConfig = DescentConfig
   { recure :: [Name]

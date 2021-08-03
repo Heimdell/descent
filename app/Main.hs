@@ -1,7 +1,6 @@
 
 import Control.Applicative ((<|>))
 import Control.Monad.State
-import Control.Monad.Cont
 
 import AST
 import Descent
@@ -57,7 +56,7 @@ useName = pack
 
 rename :: String -> ScopeM String
 rename name = do
-  (scope, counter) <- get
+  (scope, _) <- get
   case find name scope of
     Just index -> return $ addIndex name index
     Nothing    -> return name
@@ -79,7 +78,7 @@ enter = pack
 
       -- In case of lambda, insert a stack frame of 1 variable.
       --
-      Lam (NameDecl n) b -> do
+      Lam (NameDecl n) _ -> do
         lift $ putStrLn "Enter lambda"
         (scope, counter) <- get
         put ([(n, counter)] : scope, counter)
@@ -91,7 +90,7 @@ enter = pack
 
       -- In case of alt, insert an empty stack frame.
       --
-      Alt pat body -> do
+      Alt {} -> do
         lift $ putStrLn "Enter alt"
         (scope, counter) <- get
         put ([] : scope, counter)
@@ -119,7 +118,7 @@ leave = pack
       _      -> return ()
 
   , one $ sideEffect \case
-      Bind (NameLet n) b -> do
+      Bind (NameLet n) _ -> do
         (scope, counter) <- get
         put ([(n, counter)] : scope, counter + 1)
 
@@ -132,6 +131,7 @@ leave = pack
       (scope, ix) <- get
       put (tail scope, ix)
 
+main :: IO ()
 main = do
   print ast
   ast' <- runScopeM $ runTransform (descending @Prog enter leave useName) ast

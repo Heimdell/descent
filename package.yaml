@@ -44,7 +44,7 @@ default-extensions:
   - ViewPatterns
   - QuasiQuotes
 
-ghc-options: -Wall -freverse-errors
+ghc-options: -Wall -freverse-errors -Wno-type-defaults
 library:
   source-dirs:
     - src
