@@ -1,6 +1,7 @@
 name: descent
 dependencies:
   - base
+  - containers
   - typerep-map
   - template-haskell
 
