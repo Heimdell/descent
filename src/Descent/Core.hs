@@ -40,11 +40,6 @@ newtype Action m a = Action
   { runAction :: a -> m a
   }
 
--- | The composition for action containers.
---
-(>->) :: (Monad m) => Action m a -> Action m a -> Action m a
-Action l >-> Action r = Action (l >=> r)
-
 -- | The map, containing actions for various types.
 --
 newtype Transform m = Transform
@@ -67,6 +62,8 @@ empty = Transform TMap.empty
 add :: (Monad m) => Transform m -> Transform m -> Transform m
 add (Transform l) (Transform r) =
   Transform (TMap.unionWith (>->) l r)
+  where
+    Action l >-> Action r = Action (l >=> r)
 
 -- | Chain several transforms.
 --
