@@ -43,7 +43,7 @@ newtype Action m a = Action
 -- | The map, containing actions for various types.
 --
 newtype Transform m = Transform
-  { unTransform :: TMap.TypeRepMap (Action m)
+  { _unTransform :: TMap.TypeRepMap (Action m)
   }
 
 -- | Shows the list of types it has actions for.
@@ -63,7 +63,7 @@ add :: (Monad m) => Transform m -> Transform m -> Transform m
 add (Transform l) (Transform r) =
   Transform (TMap.unionWith (>->) l r)
   where
-    Action l >-> Action r = Action (l >=> r)
+    Action l' >-> Action r' = Action (l' >=> r')
 
 -- | Chain several transforms.
 --
