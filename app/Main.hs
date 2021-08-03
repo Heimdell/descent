@@ -36,10 +36,10 @@ runScopeM
 --
 useName :: Transform ScopeM
 useName = pack
-  [ one \(Name name) -> do
+  [ one \(NameVar name) -> do
       name' <- rename name
       lift $ print ("Name", name, "=>", name')
-      return $ Name name'
+      return $ NameVar name'
 
   , one \(NameDecl name) -> do
       name' <- rename name
@@ -54,10 +54,10 @@ useName = pack
       return $ NameLet name'
   ]
 
-rename :: String -> ScopeM String
+rename :: Name -> ScopeM Name
 rename name = do
   (scope, _) <- get
-  case find name scope of
+  case find (unName name) scope of
     Just index -> return $ addIndex name index
     Nothing    -> return name
 
@@ -67,8 +67,8 @@ find n (frame : rest) = lookup n frame <|> find n rest
 
 -- Add index to the name.
 --
-addIndex :: String -> Int -> String
-addIndex name index = name ++ "'" ++ show index
+addIndex :: Name -> Int -> Name
+addIndex (Name name _) index = Name name index
 
 -- Preparations before entering a `Prog`-ram.
 --
@@ -81,7 +81,7 @@ enter = pack
       Lam (NameDecl n) _ -> do
         lift $ putStrLn "Enter lambda"
         (scope, counter) <- get
-        put ([(n, counter)] : scope, counter)
+        put ([(unName n, counter)] : scope, counter)
 
       _ -> do
         return ()
@@ -102,7 +102,7 @@ enter = pack
       IsVar (NameDecl n) -> do
         lift $ putStrLn "Enter isVar"
         get >>= \(frame : scope, counter) -> do
-          put (((n, counter) : frame) : scope, counter + 1)
+          put (((unName n, counter) : frame) : scope, counter + 1)
 
       _ -> do
         return ()
@@ -120,7 +120,8 @@ leave = pack
   , one $ sideEffect \case
       Bind (NameLet n) _ -> do
         (scope, counter) <- get
-        put ([(n, counter)] : scope, counter + 1)
+        lift $ putStrLn $ "push " ++ show n
+        put ([(unName n, counter)] : scope, counter + 1)
 
   , one $ sideEffect \case
       Alt {} -> dropFrame "alt"

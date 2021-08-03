@@ -36,34 +36,34 @@ import Data.TypeRepMap qualified as TMap
 
 -- | The container for action over some node @a@.
 --
-newtype Action m a = Action
+newtype Action m a = MkAction
   { runAction :: a -> m a
   }
 
 -- | The map, containing actions for various types.
 --
-newtype Transform m = Transform
-  { _unTransform :: TMap.TypeRepMap (Action m)
+newtype Transform m = MkTransform
+  { unTransform :: TMap.TypeRepMap (Action m)
   }
 
 -- | Shows the list of types it has actions for.
 instance Show (Transform m) where
-  show (Transform t) = show $ TMap.keys t
+  show = show . TMap.keys . unTransform
 
 -- | Transform that does nothing.
 --
 empty :: Transform m
-empty = Transform TMap.empty
+empty = MkTransform TMap.empty
 
 -- | Compose two transforms.
 --
 --   If both work on some @a@, they will be run in left-to-right order.
 --
 add :: (Monad m) => Transform m -> Transform m -> Transform m
-add (Transform l) (Transform r) =
-  Transform (TMap.unionWith (>->) l r)
+add (MkTransform l) (MkTransform r) =
+  MkTransform (TMap.unionWith (>->) l r)
   where
-    Action l' >-> Action r' = Action (l' >=> r')
+    MkAction l' >-> MkAction r' = MkAction (l' >=> r')
 
 -- | Chain several transforms.
 --
@@ -73,7 +73,7 @@ pack = foldl add empty
 -- | Convert a function to `Transform`er.
 --
 one :: (Typeable a, Monad m) => (a -> m a) -> Transform m
-one f = Transform (TMap.one (Action f))
+one f = MkTransform (TMap.one (MkAction f))
 
 -- | Run the provided side effect and leave target unchanged.
 --
@@ -84,8 +84,8 @@ sideEffect f a = do
 
 -- | Run the transform on any `Typeable`.
 --
-runTransform :: forall m. (Monad m) => Transform m -> (forall a. Typeable a => a -> m a)
-runTransform (Transform trmap) a = do
+runTransform :: (Monad m, Typeable a) => Transform m -> a -> m a
+runTransform (MkTransform trmap) a = do
   case TMap.lookup trmap of
     Just f  -> runAction f a
     Nothing -> pure a
@@ -96,9 +96,9 @@ class Typeable a => Descent a where
   descend
     :: forall m
     .  (Monad m)
-    => (forall b.  Typeable b             => b -> m b) -- ^ the action over plain types
-    -> (forall c. (Typeable c, Descent c) => c -> m c) -- ^ the action over recursion points
-    -> a                                               -- ^ the target of transformations
+    => (forall b. (Typeable b) => b -> m b) -- ^ the action over plain types
+    -> (forall c. (Descent  c) => c -> m c) -- ^ the action over recursion points
+    -> a                                    -- ^ the target of transformations
     -> m a
 
 -- | Make the transform recure on @a@. Should be called on @a@ /immediately/.
@@ -110,8 +110,7 @@ class Typeable a => Descent a where
 --
 descending
   :: forall a m
-  .  ( Typeable a
-     , Descent  a
+  .  ( Descent  a
      , Monad    m
      )
   => Transform m  -- ^ "enter", the transform before entering recursion point
@@ -120,7 +119,7 @@ descending
   -> Transform m
 descending open close t = add t (one (go @a))
   where
-    go :: forall b. (Typeable b, Descent b, Monad m) => b -> m b
+    go :: forall b. (Descent b) => b -> m b
     go
       =   runTransform open
       >=> descend (runTransform t) go

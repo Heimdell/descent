@@ -7,7 +7,7 @@ import Descent (Descent(..), DescentConfig (..), generateDescentInstances)
 -- An example program type.
 
 data Prog
-  = Var   Name
+  = Var   NameVar
   | Lam   NameDecl Prog
   | App   Prog Prog
   | Let   Decl Prog
@@ -18,8 +18,7 @@ data Prog
   | Mark  String Prog
   deriving stock (Eq, Ord, Show)
 
-instance IsString Prog where
-  fromString = Var . fromString
+instance IsString Prog where fromString = Var . fromString
 
 -- | I recommend separating types for usage and declaration of some entity.
 --
@@ -27,17 +26,21 @@ instance IsString Prog where
 --
 --   So, typenames, for instance, should have their own TName/TNameUsed newtypes.
 --
-newtype Name     = Name     { unName     :: String } deriving stock (Eq, Ord) deriving newtype Show
-newtype NameDecl = NameDecl { unNameDecl :: String } deriving stock (Eq, Ord) deriving newtype Show
-newtype NameCtor = NameCtor { unNameCtor :: String } deriving stock (Eq, Ord) deriving newtype Show
-newtype NameLet  = NameLet  { unNameLet  :: String } deriving stock (Eq, Ord) deriving newtype Show
+data Name = Name { unName :: String, index :: Int } deriving stock (Eq, Ord)
 
-instance IsString Name     where fromString = Name
-instance IsString NameDecl where fromString = NameDecl
-instance IsString NameCtor where fromString = NameCtor
-instance IsString NameLet  where fromString = NameLet
+instance Show Name where
+  show (Name s (-1)) = s
+  show (Name s   n)  = s ++ "'" ++ show n
 
-data Alt = Alt Pat Prog
+instance IsString Name where fromString = flip Name (-1)
+
+newtype NameVar  = NameVar  { unNameVar  :: Name } deriving newtype (Eq, Ord, Show, IsString)
+newtype NameDecl = NameDecl { unNameDecl :: Name } deriving newtype (Eq, Ord, Show, IsString)
+newtype NameCtor = NameCtor { unNameCtor :: Name } deriving newtype (Eq, Ord, Show, IsString)
+newtype NameLet  = NameLet  { unNameLet  :: Name } deriving newtype (Eq, Ord, Show, IsString)
+
+data Alt
+  = Alt Pat Prog
   deriving stock (Eq, Ord, Show)
 
 data Decl
@@ -54,7 +57,7 @@ data Pat
   deriving stock (Eq, Ord, Show)
 
 data IsDecl
-  = IsBind    Name Pat
+  = IsBind    NameVar Pat
   | IsCapture NameDecl
   deriving stock (Eq, Ord, Show)
 
@@ -66,5 +69,5 @@ data Constant
 
 generateDescentInstances DescentConfig
   { recure = [''Prog, ''Alt, ''Decl, ''Pat, ''IsDecl]
-  , visit  = [''Name, ''NameDecl, ''NameCtor, ''NameLet, ''Constant]
+  , visit  = [''NameVar, ''NameDecl, ''NameCtor, ''NameLet, ''Constant]
   }

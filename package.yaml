@@ -1,4 +1,7 @@
 name: descent
+
+license: Unlicense
+
 dependencies:
   - base
   - containers
