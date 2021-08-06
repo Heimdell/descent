@@ -75,7 +75,7 @@ generateDescentInstances DescentConfig { recure, visit } = do
 
         visitor src (AppT _ x) = (var "traverse" `AppE`) <$> visitor src x
         visitor src (AppKindT t _) = visitor src t
-        visitor _   (TupleT 0) = return $ var "pure" `AppE` TupE []
+        visitor _   (TupleT 0) = return $ var "pure"
         visitor src (SigT t _) = visitor src t
         visitor src (ParensT t) = visitor src t
         visitor src (InfixT _ _ t) = (var "traverse" `AppE`) <$> visitor src t
