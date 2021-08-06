@@ -14,4 +14,4 @@ Run `stack haddock` to generate documentation.
 
 # Example
 
-See [AST.hs](./app/AST.hs) for example of mut-rec types and [Main.hs](./app/Main.hs) for a transformation that assigns stack depth for each variable (`let` is assumed `let rec` there).
+See [AST.hs](./app/AST.hs) for example of mut-rec types and [Main.hs](./app/Main.hs) for a transformation that assigns de Brujin index for each variable (`let` is assumed `let rec` there).
