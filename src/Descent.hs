@@ -5,16 +5,18 @@ module Descent
 
 import Descent.Core as M
   ( Transform
+  , Phase(..)
   , runTransform
   , empty
-  , one
+  , with
+  , with_
+  , coercing
+  , coercing_
   , add
   , pack
 
   , Descent(..)
   , descending
-
-  , sideEffect
   )
 
 import Descent.TH as M

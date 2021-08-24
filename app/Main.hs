@@ -32,28 +32,6 @@ runScopeM :: ScopeM r -> IO r
 runScopeM
   = flip evalStateT []
 
--- If the name ("a") is bound, convert it to "a'N", where N is its depth in stack.
---
-useName :: Transform ScopeM
-useName = pack
-  [ one \(NameVar name) -> do
-      name' <- rename name
-      get >>= \s ->
-        lift $ print ("Name", name, "=>", name', "in", s)
-      return $ NameVar name'
-
-  , one \(NameDecl name) -> do
-      name' <- rename name
-      -- lift $ print ("Decl", name, "->", name')
-      return $ NameDecl name'
-
-  -- Small hack. We assign depth the name would take (but it didn't).
-  , one \(NameLet name) -> do
-      let name' = addIndex name 0
-      -- lift $ print ("Let", name, "->", name')
-      return $ NameLet name'
-  ]
-
 -- Find the current depth of the name and attach it.
 rename :: Name -> ScopeM Name
 rename name = do
@@ -83,65 +61,46 @@ addIndex (Name name _) index = Name name index
 
 -- Preparations before entering a `Prog`-ram.
 --
-enter :: Transform ScopeM
-enter = pack
-  [ one $ sideEffect \case
-
-      -- In case of lambda, insert a stack frame of 1 variable.
-      --
-      Lam (NameDecl n) _ -> do
-        -- lift $ putStrLn "Enter lambda"
-        modify ([unName n] :)
-
-      _ -> do
-        return ()
-
-  , one $ sideEffect \case
-
-      -- In case of alt, insert an empty stack frame.
-      --
-      Alt {} -> do
-        modify ([] :)
-        -- lift $ putStrLn "Enter alt"
-
-  , one $ sideEffect \case
-
-      -- In case of var-pattern, insert an variable into the top stack frame.
-      --
-      IsVar (NameDecl n) -> do
-        -- lift $ putStrLn "Enter isVar"
-        modify \(top : s) -> (unName n : top) : s
-
-      _ -> do
-        return ()
-  ]
-
--- Cleanouts. We drop top frame here, if applicable.
+-- If the name ("a") is bound, convert it to "a'N", where N is its depth in stack.
 --
-leave :: Transform ScopeM
-leave = pack
-  [ one $ sideEffect \case
-      Lam {} -> dropFrame "lambda"
-      Let {} -> dropFrame "let"
+useName :: Transform ScopeM
+useName = pack
+  [ Entering `with_` \case
+      Lam (NameDecl n) _ -> modify ([unName n] :)
+      _                  -> return ()
+
+  , Entering `with_` \case
+      Alt {} -> modify ([] :)
+
+  , Entering `with_` \case
+      IsVar (NameDecl n) -> modify \(top : s) -> (unName n : top) : s
+      _                  -> return ()
+
+  , coercing @NameVar  Inside rename
+  , coercing @NameDecl Inside rename
+
+  -- Small hack. We assign depth the name would take (but it didn't).
+  , Inside `with` \(NameLet name) -> do
+      return $ NameLet (addIndex name 0)
+
+  , Leaving `with_` \case
+      Lam {} -> dropFrame
+      Let {} -> dropFrame
       _      -> return ()
 
-  , one $ sideEffect \case
-      Bind (NameLet n) _ -> do
-        -- lift $ putStrLn $ "push " ++ show n
-        modify ([unName n] :)
+  , Leaving `with_` \case
+      Bind (NameLet n) _ -> modify ([unName n] :)
 
-  , one $ sideEffect \case
-      Alt {} -> dropFrame "alt"
+  , Leaving `with_` \case
+      Alt {} -> dropFrame
   ]
   where
-    dropFrame what = do
-      -- lift $ putStrLn $ "Leave " ++ what
-      modify tail
+    dropFrame = modify tail
 
 main :: IO ()
 main = do
   print ast
   -- assign initial De Brujin indices to names.
-  ast' <- runScopeM $ runTransform (descending @Prog enter leave useName) ast
+  ast' <- runScopeM $ runTransform (descending @Prog useName) ast
   print "----"
   print ast'

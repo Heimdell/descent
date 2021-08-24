@@ -27,6 +27,13 @@ generateDescentInstances DescentConfig { recure, visit } = do
           [ FunD (mkName "descend")
             [Clause [arg "_leaf", arg "_branch"] (NormalB (LamCaseE (concat matches))) []]
           ]
+      TyConI (NewtypeD _ _tvars _ _ con _) -> do
+        match <- ctors root con
+        return
+          $ InstanceD Nothing [] (AppT (ConT descent) (ConT root))
+          [ FunD (mkName "descend")
+            [Clause [arg "_leaf", arg "_branch"] (NormalB (LamCaseE match)) []]
+          ]
       i -> fail $ "It is only possible to descend over an ADT type, but not over `" ++ show (ppr i) ++ "`"
   where
     recureSet = Set.fromList recure
